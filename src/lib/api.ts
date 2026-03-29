@@ -16,25 +16,14 @@ const api = axios.create({
 
 const fixImageUrl = (url: string): string => {
   if (!url || typeof url !== 'string') return '';
-
-  if (url.startsWith('http')) {
-    if (url.includes('localhost') || url.includes('127.0.0.1')) {
-      return url.replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/, BASE_DOMAIN);
-    }
-    if (url.includes('ngrok-free.app') && url.startsWith('http://')) {
-      return url.replace('http://', 'https://');
-    }
-    return url;
-  }
-
+  // Cloudinary URLs are already absolute and correct — return as-is
+  if (url.startsWith('https://res.cloudinary.com')) return url;
+  // Keep the fallback for any non-image absolute URLs
+  if (url.startsWith('http')) return url;
+  // Relative paths (shouldn't happen after Cloudinary, but just in case)
   if (url.startsWith('/media') || url.startsWith('/static')) {
     return `${BASE_DOMAIN}${url}`;
   }
-
-  if (url.startsWith('media') || url.startsWith('static')) {
-    return `${BASE_DOMAIN}/${url}`;
-  }
-
   return url;
 };
 
