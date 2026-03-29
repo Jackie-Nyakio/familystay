@@ -292,7 +292,7 @@ export default function HostDashboard() {
 
     // FIX: Add /host/ to the URL path
     await axios.patch(
-      `${process.env.NEXT_PUBLIC_API_URL || 'https://fa4e-38-226-202-130.ngrok-free.app/api'}/properties/host/${editingProperty.id}/update/`,
+      `${process.env.NEXT_PUBLIC_API_URL || 'https://margurite-nonvalid-harper.ngrok-free.dev/api'}/properties/host/${editingProperty.id}/update/`,
       updateData,
       {
         headers: {
@@ -307,7 +307,7 @@ export default function HostDashboard() {
       for (const imageId of imagesToDelete) {
         try {
           await axios.delete(
-            `${process.env.NEXT_PUBLIC_API_URL || 'https://fa4e-38-226-202-130.ngrok-free.app/api'}/properties/host/${editingProperty.id}/images/${imageId}/`,
+            `${process.env.NEXT_PUBLIC_API_URL || 'https://margurite-nonvalid-harper.ngrok-free.dev/api'}/properties/host/${editingProperty.id}/images/${imageId}/`,
             {
               headers: {
                 'Authorization': `Bearer ${token}`,
@@ -328,7 +328,7 @@ export default function HostDashboard() {
       // You might need a specific endpoint for updating featured image
       // If not, you can use the image upload endpoint and set one as featured
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'https://fa4e-38-226-202-130.ngrok-free.app/api'}/properties/host/${editingProperty.id}/images/`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://margurite-nonvalid-harper.ngrok-free.dev/api'}/properties/host/${editingProperty.id}/images/`,
         featuredFormData,
         {
           headers: {
@@ -347,7 +347,7 @@ export default function HostDashboard() {
       });
 
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'https://fa4e-38-226-202-130.ngrok-free.app/api'}/properties/host/${editingProperty.id}/images/`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://margurite-nonvalid-harper.ngrok-free.dev/api'}/properties/host/${editingProperty.id}/images/`,
         galleryFormData,
         {
           headers: {
@@ -423,7 +423,7 @@ export default function HostDashboard() {
       }
 
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'https://fa4e-38-226-202-130.ngrok-free.app/api'}/properties/host/create/`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://margurite-nonvalid-harper.ngrok-free.dev/api'}/properties/host/create/`,
         formData,
         {
           headers: {
