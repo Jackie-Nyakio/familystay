@@ -7,30 +7,19 @@ import toast from 'react-hot-toast';
 interface BookingDetail {
   id: number;
   booking_reference: string;
-  property?: {  // Make property optional
-    id: number;
-    title: string;
-    featured_image: string;
-    address: string;
-    city: string;
-    host?: {
-      id: number;
-      name: string;
-      profile_picture?: string;
-    };
+  property?: Property;
+  listing?: Property;
+  total_amount: number;
+  booking_status: string;
+  payment_status: string;
+  guest_info?: {
+    full_name: string;
+    email: string;
+    phone: string;
   };
-  listing?: {  // Some APIs use 'listing' instead of 'property'
-    id: number;
-    title: string;
-    featured_image: string;
-    address: string;
-    city: string;
-    host?: {
-      id: number;
-      name: string;
-      profile_picture?: string;
-    };
-  };
+  guest_name?: string;
+  guest_email?: string;
+  guest_phone?: string;
   check_in_date: string;
   check_out_date: string;
   number_of_guests: number;
@@ -41,17 +30,7 @@ interface BookingDetail {
   subtotal: number;
   cleaning_fee: number;
   service_fee: number;
-  total_amount: number;
-  booking_status: string;
-  payment_status: string;
-  guest_info?: {
-    full_name: string;
-    email: string;
-    phone: string;
-  };
-  guest_name?: string;  // Some APIs use flat structure
-  guest_email?: string;
-  guest_phone?: string;
+  tax_amount?: number;
   created_at: string;
   history?: Array<{
     changed_by_name: string;
@@ -63,12 +42,27 @@ interface BookingDetail {
   }>;
 }
 
+interface Property {
+  id: number;
+  title: string;
+  address: string;
+  city: string;
+  featured_image: string;
+  host?: {
+    id: number;
+    name: string;
+    profile_picture?: string;
+  };
+  status?: string;
+  security_deposit: number;
+}
+
 export default function BookingDetail() {
   const router = useRouter();
   const { id } = router.query;
   const [booking, setBooking] = useState<BookingDetail | null>(null);
+  const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
-  const [messages, setMessages] = useState<any[]>([]);
 
   useEffect(() => {
     if (id && typeof id === 'string') {
@@ -77,30 +71,31 @@ export default function BookingDetail() {
   }, [id]);
 
   const fetchBooking = async () => {
-  setLoading(true);
-  try {
-    // Convert id to number
-    const bookingId = Number(id);
-    
-    // Check which method exists on bookingsApi
-    const response = await bookingsApi.get(bookingId);
-    
-    console.log('API Response:', response);
-    console.log('Response data:', response.data);
-    
-    setBooking(response.data);
-  } catch (error: any) {
-    console.error('Error fetching booking:', error);
-    toast.error(error.response?.data?.message || 'Failed to load booking details');
-    router.push('/bookings');
-  } finally {
-    setLoading(false);
-  }
-};
+    setLoading(true);
+    try {
+      const bookingId = Number(id);
+      const response = await bookingsApi.get(bookingId);
+      const bookingData = response.data;
+      setBooking(bookingData);
+
+      // Get property details
+      const prop = bookingData.listing || bookingData.property;
+      if (prop?.id) {
+        const propertyResponse = await propertiesApi.get(prop.id);
+        setProperty(propertyResponse.data);
+      }
+    } catch (error: any) {
+      console.error('Error fetching booking:', error);
+      toast.error(error.response?.data?.message || 'Failed to load booking details');
+      router.push('/bookings');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCancelBooking = async () => {
     if (!confirm('Are you sure you want to cancel this booking?')) return;
-    
+
     try {
       await bookingsApi.cancel(Number(id), 'Cancelled by guest');
       toast.success('Booking cancelled successfully');
@@ -109,6 +104,11 @@ export default function BookingDetail() {
       toast.error(error.response?.data?.message || 'Failed to cancel booking');
     }
   };
+
+  const canPayDeposit = property && 
+    property.status === 'APPROVED' && 
+    booking?.payment_status === 'PENDING' && 
+    property.security_deposit > 0;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -122,7 +122,7 @@ export default function BookingDetail() {
 
   const getPaymentColor = (status: string) => {
     switch (status) {
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
+      case 'PENDING': return 'bg-orange-100 text-orange-800';
       case 'PAID': return 'bg-green-100 text-green-800';
       case 'FAILED': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -149,7 +149,8 @@ export default function BookingDetail() {
       </div>
     );
   }
-  const property =  booking.listing || booking.property ;
+
+  const currentProperty = booking.listing || booking.property || property;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -159,15 +160,6 @@ export default function BookingDetail() {
           <div className="flex gap-4">
             <Link href="/bookings" className="text-gray-600">My Bookings</Link>
             <Link href="/search" className="text-gray-600">Explore</Link>
-            <button 
-              onClick={() => {
-                localStorage.clear();
-                router.push('/auth/login');
-              }} 
-              className="text-gray-600"
-            >
-              Logout
-            </button>
           </div>
         </div>
       </header>
@@ -184,6 +176,13 @@ export default function BookingDetail() {
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${getPaymentColor(booking.payment_status)}`}>
                   {booking.payment_status}
                 </span>
+                {property?.status && (
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    property.status === 'APPROVED' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    Property: {property.status}
+                  </span>
+                )}
               </div>
             </div>
             <div className="text-right">
@@ -191,7 +190,7 @@ export default function BookingDetail() {
                 KES {Number(booking.total_amount).toLocaleString()}
               </div>
               <div className="text-sm text-gray-500">
-                {booking.nightly_price} × {booking.total_nights} nights
+                {booking.nightly_price} × {booking.total_nights} nights (+ deposit)
               </div>
             </div>
           </div>
@@ -199,18 +198,18 @@ export default function BookingDetail() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Property Info */}
             <div className="lg:col-span-2">
-              <Link href={`/property/${property?.id}`} className="block group">
+              <Link href={`/property/${currentProperty?.id}`} className="block group">
                 <div className="relative rounded-lg overflow-hidden mb-4 shadow-sm">
-                  <img 
-                    src={booking.listing?.featured_image} 
-                    alt={property?.title}
+                  <img
+                    src={booking.listing?.featured_image || currentProperty?.featured_image}
+                    alt={currentProperty?.title}
                     className="w-full h-64 object-cover group-hover:scale-105 transition-transform"
                   />
                 </div>
-                <h2 className="text-2xl font-bold">{property?.title}</h2>
+                <h2 className="text-2xl font-bold">{currentProperty?.title}</h2>
               </Link>
-              <p className="text-gray-600 mt-1">{property?.address}, {property?.city}</p>
-              
+              <p className="text-gray-600 mt-1">{currentProperty?.address}, {currentProperty?.city}</p>
+
               <div className="mt-6 space-y-4">
                 <div>
                   <h3 className="font-semibold mb-2">Dates</h3>
@@ -268,9 +267,15 @@ export default function BookingDetail() {
                       <span>KES {Number(booking.service_fee).toLocaleString()}</span>
                     </div>
                   )}
+                  {property?.security_deposit && property.security_deposit > 0 && (
+                    <div className="flex justify-between pt-2 border-t font-semibold bg-orange-50 p-2 rounded-lg">
+                      <span>🔒 Security Deposit</span>
+                      <span>+ KES {Number(property.security_deposit).toLocaleString()}</span>
+                    </div>
+                  )}
                   <div className="border-t pt-2 font-semibold text-lg">
                     <div className="flex justify-between">
-                      <span>Total</span>
+                      <span>Total Stay Cost</span>
                       <span>KES {Number(booking.total_amount).toLocaleString()}</span>
                     </div>
                   </div>
@@ -279,21 +284,31 @@ export default function BookingDetail() {
 
               <div className="space-y-3">
                 {booking.booking_status === 'PENDING' && (
-                  <button 
+                  <button
                     onClick={handleCancelBooking}
                     className="w-full bg-red-500 text-white py-3 px-4 rounded-lg hover:bg-red-600 font-semibold"
                   >
                     Cancel Booking
                   </button>
                 )}
-                <Link 
-                  href={`/messages?propertyId=${property?.id}`}
+                
+                {canPayDeposit && (
+                  <Link
+                    href={`/bookings/security-deposit/${id}`}
+                    className="w-full block bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg hover:from-orange-600 hover:to-orange-700 font-semibold text-center shadow-lg transform hover:-translate-y-0.5 transition-all"
+                  >
+                    💳 Pay Security Deposit (KES {Number(property.security_deposit).toLocaleString()})
+                  </Link>
+                )}
+                
+                <Link
+                  href={`/messages?propertyId=${currentProperty?.id}`}
                   className="w-full block bg-primary-500 text-white py-3 px-4 rounded-lg hover:bg-primary-600 font-semibold text-center"
                 >
                   Contact Host
                 </Link>
-                <Link 
-                  href={`/property/${property?.id}`}
+                <Link
+                  href={`/property/${currentProperty?.id}`}
                   className="w-full block bg-gray-100 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-200 font-semibold text-center"
                 >
                   View Property
@@ -302,7 +317,7 @@ export default function BookingDetail() {
             </div>
           </div>
 
-          {/* Booking History */}
+          {/* Rest unchanged... */}
           {booking.history && booking.history.length > 0 && (
             <div className="bg-white rounded-lg shadow-sm p-6 mt-8">
               <h3 className="text-xl font-bold mb-4">Booking History</h3>
@@ -330,28 +345,30 @@ export default function BookingDetail() {
             </div>
           )}
 
-          {/* Host Info */}
-          <div className="bg-white rounded-lg shadow-sm p-6 mt-8">
-            <h3 className="text-xl font-bold mb-4">Host</h3>
-            <div className="flex items-center gap-4">
-              <img 
-                src={property?.host?.profile_picture || '/default-avatar.png'}
-                alt={property?.host?.name}
-                className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
-              />
-              <div>
-                <h4 className="font-semibold">{property?.host?.name}</h4>
-                <Link 
-                  href={`/messages?propertyId=${property?.id}`}
-                  className="text-primary-500 hover:underline text-sm"
-                >
-                  Send Message
-                </Link>
+          {currentProperty?.host && (
+            <div className="bg-white rounded-lg shadow-sm p-6 mt-8">
+              <h3 className="text-xl font-bold mb-4">Host</h3>
+              <div className="flex items-center gap-4">
+                <img
+                  src={currentProperty.host.profile_picture || '/default-avatar.png'}
+                  alt={currentProperty.host.name}
+                  className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
+                />
+                <div>
+                  <h4 className="font-semibold">{currentProperty.host.name}</h4>
+                  <Link
+                    href={`/messages?propertyId=${currentProperty.id}`}
+                    className="text-primary-500 hover:underline text-sm"
+                  >
+                    Send Message
+                  </Link>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
